@@ -1,0 +1,33 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// HOW-2-BRD 12/03/25:10am-12/03/25:3pm
+model TrainTiming {
+  id    Int     @id @default(autoincrement())
+  trainUniqueId String
+  trainNo String
+  source String
+  destination String
+  sourceTime DateTime
+  destinationTime DateTime
+}
+
+model Tickets {
+  id    Int     @id @default(autoincrement())
+  ticketNo String @unique
+  name String
+  phone String
+  dob String
+  gender String
+  bookedOn DateTime 
+  seatNo String
+  ticketType String
+}
+
+// model TrainSeatConfig {}
