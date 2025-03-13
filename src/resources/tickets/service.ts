@@ -45,13 +45,14 @@ export class TicketService {
       where: { trainUniqueId }
     });
 
-    return JSON.parse(trainSeatingConfig.config as any) as ISeatConfig
+    return { trainSeatingConfig: JSON.parse(trainSeatingConfig.config as any) as ISeatConfig, trainConfigId: trainSeatingConfig.id }
 
   }
 
   async bookTicket(passengers: Array<IPassenger>, trainUniqueId: string, phone: string) {
-    const trainSeatingConfig = await this.getTrainSeatingConfig(trainUniqueId);
+    const { trainSeatingConfig, trainConfigId } = await this.getTrainSeatingConfig(trainUniqueId);
     const bookedTickets: any[] = [];
+    const failedPassengers: { name: string; reason: string }[] = [];
 
     for (const passenger of passengers) {
       const age = new Date().getFullYear() - new Date(passenger.dob).getFullYear();
@@ -60,54 +61,81 @@ export class TicketService {
       let seatNo: string | null = null;
       const ticketNo = uuidv4();
 
-      // 1. Try Lower Berth (Preferred for <5 and >60)
-      if ((age < 5 || age > 60) && trainSeatingConfig.lowerBerth.length < trainSeatingConfig.lowerBerthMaxSeats) {
-        allocatedBerth = "lower";
-        allocatedIndex = trainSeatingConfig.lowerBerth.length;
+      // **Prioritize Lower Berth for Children (<5) & Seniors (>60)**
+      if (age < 5 || age > 60) {
+        // preference lowerberth
+        if (trainSeatingConfig.lowerBerth.length < trainSeatingConfig.lowerBerthMaxSeats) {
+          allocatedBerth = ticketTypesContants.lower as TicketType;
+          allocatedIndex = trainSeatingConfig.lowerBerth.length;
 
-        const coachNumber = Math.floor(allocatedIndex / 2);
-        const seatIdx = String(allocatedIndex % 2) as keyof typeof trainSeatingConfig.lowerBerthSeatConfig; // Ensure valid key
-        const berthName = trainSeatingConfig.lowerBerthSeatConfig?.[seatIdx];
+          const coachNumber = Math.floor(allocatedIndex / 2);
+          const seatIdx = String(allocatedIndex % 2) as keyof typeof trainSeatingConfig.lowerBerthSeatConfig; // Ensure valid key
+          const berthName = trainSeatingConfig.lowerBerthSeatConfig?.[seatIdx];
 
-        seatNo = `coachNumber:${coachNumber},seatNo:${berthName}`;
+          seatNo = `coachNumber:${coachNumber},seatNo:${berthName}`;
+          trainSeatingConfig.lowerBerth.push({ taken: true, ticketNo });
+        }
+        // if all booked general seats
+        else if (trainSeatingConfig.generalBerth.length < trainSeatingConfig.generalBerthMaxSeats) {
+          allocatedBerth = ticketTypesContants.general as TicketType;
+          allocatedIndex = trainSeatingConfig.generalBerth.length;
 
-        trainSeatingConfig.lowerBerth.push({ taken: true, ticketNo });
+          const coachNumber = Math.floor(allocatedIndex / 5);
+          const seatIdx = String(allocatedIndex % 5) as keyof typeof trainSeatingConfig.generalBerthSeatConfig; // Ensure valid key
+          const berthName = trainSeatingConfig.generalBerthSeatConfig?.[seatIdx];
+
+          seatNo = `coachNumber:${coachNumber},seatNo:${berthName}`;
+          trainSeatingConfig.generalBerth.push({ taken: true, ticketNo });
+        }
+      } else {
+        if (trainSeatingConfig.generalBerth.length < trainSeatingConfig.generalBerthMaxSeats) {
+          allocatedBerth = ticketTypesContants.general as TicketType;
+          allocatedIndex = trainSeatingConfig.generalBerth.length;
+
+          const coachNumber = Math.floor(allocatedIndex / 5);
+          const seatIdx = String(allocatedIndex % 5) as keyof typeof trainSeatingConfig.generalBerthSeatConfig; // Ensure valid key
+          const berthName = trainSeatingConfig.generalBerthSeatConfig?.[seatIdx];
+
+          seatNo = `coachNumber:${coachNumber},seatNo:${berthName}`;
+
+          trainSeatingConfig.generalBerth.push({ taken: true, ticketNo });
+        } else if (trainSeatingConfig.lowerBerth.length < trainSeatingConfig.lowerBerthMaxSeats) {
+
+          allocatedBerth = ticketTypesContants.lower as TicketType;
+          allocatedIndex = trainSeatingConfig.lowerBerth.length;
+
+          const coachNumber = Math.floor(allocatedIndex / 2);
+          const seatIdx = String(allocatedIndex % 2) as keyof typeof trainSeatingConfig.lowerBerthSeatConfig; // Ensure valid key
+          const berthName = trainSeatingConfig.lowerBerthSeatConfig?.[seatIdx];
+
+          seatNo = `coachNumber:${coachNumber},seatNo:${berthName}`;
+
+          trainSeatingConfig.lowerBerth.push({ taken: true, ticketNo });
+        }
       }
-      // 2. Try General Berth
-      else if (trainSeatingConfig.generalBerth.length < trainSeatingConfig.generalBerthMaxSeats) {
-        allocatedBerth = "general";
-        allocatedIndex = trainSeatingConfig.generalBerth.length;
 
-        const coachNumber = Math.floor(allocatedIndex / 5);
-        const seatIdx = String(allocatedIndex % 5) as keyof typeof trainSeatingConfig.generalBerthSeatConfig; // Ensure valid key
-        const berthName = trainSeatingConfig.generalBerthSeatConfig?.[seatIdx];
-
-        seatNo = `coachNumber:${coachNumber},seatNo:${berthName}`;
-
-        trainSeatingConfig.generalBerth.push({ taken: true, ticketNo });
-      }
-      // 3. Try RAC
-      else if (trainSeatingConfig.racBerth.length < trainSeatingConfig.racBerthMaxSeats) {
+      // If Neither General nor Lower Berth is Available, Try RAC
+      if (!allocatedBerth && trainSeatingConfig.racBerth.length < trainSeatingConfig.racBerthMaxSeats) {
         allocatedBerth = "rac";
         allocatedIndex = trainSeatingConfig.racBerth.length;
-        seatNo = `RAC:${allocatedIndex}`;
+        seatNo = `RAC-${allocatedIndex}`;
         trainSeatingConfig.racBerth.push({ taken: true, ticketNo });
       }
-      // 4. Try Waiting List
-      else if (trainSeatingConfig.waitingLists.length < trainSeatingConfig.waitingListMaxSeats) {
+      // If RAC is Full, Try Waiting List
+      else if (!allocatedBerth && trainSeatingConfig.waitingLists.length < trainSeatingConfig.waitingListMaxSeats) {
         allocatedBerth = "waiting";
         allocatedIndex = trainSeatingConfig.waitingLists.length;
-        seatNo = `WL:${allocatedIndex}`;
+        seatNo = `WL-${allocatedIndex}`;
         trainSeatingConfig.waitingLists.push({ taken: true, ticketNo });
       }
-      // 5. Reject Ticket If No Space
-      else {
-        console.log(`Passenger ${passenger.name} cannot be accommodated.`);
+      // If No Space Available, Reject Ticket
+      else if (!allocatedBerth) {
+        failedPassengers.push({ name: passenger.name, reason: "No seats available in any category" });
         continue;
       }
 
       // Store Ticket Details
-      const ticketInfo = {
+      bookedTickets.push({
         ticketNo,
         trainUniqueId,
         name: passenger.name,
@@ -117,36 +145,32 @@ export class TicketService {
         phone,
         seatNo,
         ticketType: allocatedBerth,
-      };
-      bookedTickets.push(ticketInfo);
-    }
-
-
-
-    if (bookedTickets.length > 0) {
-      console.log(`state: `, trainSeatingConfig);
-      console.log(`all tickets: `, bookedTickets);
-
-      await this.prisma.$transaction([
-        this.prisma.trainConfig.updateMany({
-          where: { trainUniqueId },
-          data: { config: JSON.stringify(trainSeatingConfig) }
-        }),
-        this.prisma.tickets.createMany({
-          data: bookedTickets,
-        })
-      ]);
-
-      // Fetch the newly inserted tickets
-      const newTickets = await this.prisma.tickets.findMany({
-        where: {
-          ticketNo: { in: bookedTickets.map(ticket => ticket.ticketNo) }
-        }
       });
-
-      return newTickets;
     }
+
+    // If no passengers could be booked, throw an error
+    if (bookedTickets.length === 0) {
+      throw new Error("No tickets available. Booking failed for all passengers.");
+    }
+
+    // Save bookings to database
+    await this.prisma.$transaction([
+      this.prisma.trainConfig.update({
+        where: { id: trainConfigId },
+        data: { config: JSON.stringify(trainSeatingConfig) }
+      }),
+      this.prisma.tickets.createMany({
+        data: bookedTickets,
+      })
+    ]);
+
+    // Return success and failure responses
+    return {
+      bookedTickets,
+      failedPassengers,
+    };
   }
+
 
   getTicketDetails(ticketNo: string) {
     return this.prisma.tickets.findFirstOrThrow({
@@ -157,9 +181,9 @@ export class TicketService {
 
   async cancelTicket(ticketNo: string) {
     const ticket = await this.getTicketDetails(ticketNo);
-    const trainConfig = await this.getTrainSeatingConfig(ticket.trainUniqueId);
+    const { trainConfigId, trainSeatingConfig } = await this.getTrainSeatingConfig(ticket.trainUniqueId);
 
-    let updatedTrainConfig = { ...trainConfig };
+    let updatedTrainConfig = { ...trainSeatingConfig };
     let movedToGeneral: any[] = [];
     let movedToRAC: any[] = [];
     let ticketUpdates: any[] = [];
@@ -205,7 +229,7 @@ export class TicketService {
       );
 
       movedToRAC.push(wlTicketNo);
-    }
+   }
 
     // Delete the canceled ticket
     ticketUpdates.push(
@@ -215,7 +239,7 @@ export class TicketService {
     // Update DB
     const [newTrainConfig, ...tickets] = await this.prisma.$transaction([
       this.prisma.trainConfig.update({
-        where: { id: ticket.id, trainUniqueId: ticket.trainUniqueId },
+        where: { id: trainConfigId },
         data: { config: JSON.stringify(updatedTrainConfig) }
       }),
       ...ticketUpdates

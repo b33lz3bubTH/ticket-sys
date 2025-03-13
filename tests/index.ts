@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const API_URL = "http://localhost:4000/api/v1/tickets/book";
-const TRAIN_ID = "bb505e44-5b6e-439d-bf8c-535699ea9d60";
+const TRAIN_ID = "";
 
 function getRandomDOB() {
   const startYear = 1950;
@@ -14,7 +14,7 @@ function getRandomDOB() {
   return `${randomYear}-${randomMonth}-${randomDay}`;
 }
 
-function calculateAge(dob) {
+function calculateAge(dob: any) {
   const birthDate = new Date(dob);
   const today = new Date();
   let age = today.getFullYear() - birthDate.getFullYear();
@@ -26,6 +26,10 @@ function calculateAge(dob) {
 }
 
 async function bookSeats() {
+  if(!TRAIN_ID){
+    console.log("❌ Please provide a valid train ID.");
+    return;
+  }
   const totalSeats = 91;
   let bookedSeats = 0;
 
@@ -33,7 +37,7 @@ async function bookSeats() {
     const dob = getRandomDOB();
     const age = calculateAge(dob);
 
-    let requestBody;
+    let requestBody: any;
 
     if (age < 5) {
       requestBody = {
@@ -71,7 +75,7 @@ async function bookSeats() {
 
       console.log(`✅ Seat booked for ${requestBody.passengers[0].name} (Age: ${age}):`, response.data);
       bookedSeats++;
-    } catch (error) {
+    } catch (error: any) {
       console.error(`❌ Failed to book seat for ${requestBody.passengers[0].name}:`, error.response?.data || error.message);
     }
 

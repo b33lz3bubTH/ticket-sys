@@ -19,22 +19,25 @@ model TrainTiming {
 }
 
 model TrainConfig {
-  id    Int     @id @default(autoincrement())
-  trainUniqueId String
-  config Json
+  id            Int     @id @default(autoincrement())
+  trainUniqueId String  @unique
+  config        Json
+
+  Tickets Tickets[]  
 }
 
 model Tickets {
-  id    Int     @id @default(autoincrement())
-  ticketNo String @unique
-  trainUniqueId String
-  name String
-  phone String
-  dob String
-  gender String
-  bookedOn DateTime 
-  seatNo String
-  ticketType String
+  id            Int     @id @default(autoincrement())
+  ticketNo      String  @unique
+  trainUniqueId String  // Foreign key reference
+  name          String
+  phone         String
+  dob           String
+  gender        String
+  bookedOn      DateTime 
+  seatNo        String
+  ticketType    String
+
+  trainConfig   TrainConfig @relation(fields: [trainUniqueId], references: [trainUniqueId], onDelete: Cascade)
 }
 
-// model TrainSeatConfig {}
