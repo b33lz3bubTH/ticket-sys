@@ -3,6 +3,10 @@
 
 # **Train Ticket Booking and Cancellation - API Testing Documentation**
 
+## Run in Prod
+
+> docker-compose up --build
+##### server: http://localhost:3000/api/v1/trains/timings 
 
 ## Run in dev
 #### set env
