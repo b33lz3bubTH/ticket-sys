@@ -6,7 +6,7 @@ import { ISeatConfig } from "../../types"
 import { IPassenger } from "./dtos";
 
 type TicketType = "lower" | "general" | "rac" | "waiting";
-const ticketTypesContants = {
+const ticketTypesConstants = {
   lower: "lower",
   general: "general",
   rac: "rac",
@@ -49,6 +49,7 @@ export class TicketService {
 
   }
 
+
   async bookTicket(passengers: Array<IPassenger>, trainUniqueId: string, phone: string) {
     const { trainSeatingConfig, trainConfigId } = await this.getTrainSeatingConfig(trainUniqueId);
     const bookedTickets: any[] = [];
@@ -57,84 +58,113 @@ export class TicketService {
     for (const passenger of passengers) {
       const age = new Date().getFullYear() - new Date(passenger.dob).getFullYear();
       let allocatedBerth: TicketType | null = null;
-      let allocatedIndex: number | null = null;
       let seatNo: string | null = null;
       const ticketNo = uuidv4();
 
-      // **Prioritize Lower Berth for Children (<5) & Seniors (>60)**
-      if (age < 5 || age > 60) {
-        // preference lowerberth
-        if (trainSeatingConfig.lowerBerth.length < trainSeatingConfig.lowerBerthMaxSeats) {
-          allocatedBerth = ticketTypesContants.lower as TicketType;
-          allocatedIndex = trainSeatingConfig.lowerBerth.length;
-
-          const coachNumber = Math.floor(allocatedIndex / 2);
-          const seatIdx = String(allocatedIndex % 2) as keyof typeof trainSeatingConfig.lowerBerthSeatConfig; // Ensure valid key
-          const berthName = trainSeatingConfig.lowerBerthSeatConfig?.[seatIdx];
-
-          seatNo = `coachNumber:${coachNumber},seatNo:${berthName}`;
-          trainSeatingConfig.lowerBerth.push({ taken: true, ticketNo });
+      // **Function to find an available (previously canceled) seat or next free seat**
+      const findAvailableSeat = (berthArray: any[], maxSeats: number, seatConfig: any, perCoach: number) => {
+        let seatIndex = berthArray.findIndex(seat => !seat.taken);
+        if (seatIndex === -1 && berthArray.length < maxSeats) {
+          seatIndex = berthArray.length; // Assign a new seat if all taken
         }
-        // if all booked general seats
-        else if (trainSeatingConfig.generalBerth.length < trainSeatingConfig.generalBerthMaxSeats) {
-          allocatedBerth = ticketTypesContants.general as TicketType;
-          allocatedIndex = trainSeatingConfig.generalBerth.length;
-
-          const coachNumber = Math.floor(allocatedIndex / 5);
-          const seatIdx = String(allocatedIndex % 5) as keyof typeof trainSeatingConfig.generalBerthSeatConfig; // Ensure valid key
-          const berthName = trainSeatingConfig.generalBerthSeatConfig?.[seatIdx];
-
-          seatNo = `coachNumber:${coachNumber},seatNo:${berthName}`;
-          trainSeatingConfig.generalBerth.push({ taken: true, ticketNo });
+        if (seatIndex !== -1) {
+          const coachNumber = Math.floor(seatIndex / perCoach);
+          const seatIdx = String(seatIndex % perCoach) as keyof typeof seatConfig;
+          return {
+            seatNo: `coachNumber:${coachNumber},seatNo:${seatConfig[seatIdx]}`,
+            seatIndex
+          };
         }
-      } else {
-        if (trainSeatingConfig.generalBerth.length < trainSeatingConfig.generalBerthMaxSeats) {
-          allocatedBerth = ticketTypesContants.general as TicketType;
-          allocatedIndex = trainSeatingConfig.generalBerth.length;
+        return null;
+      };
 
-          const coachNumber = Math.floor(allocatedIndex / 5);
-          const seatIdx = String(allocatedIndex % 5) as keyof typeof trainSeatingConfig.generalBerthSeatConfig; // Ensure valid key
-          const berthName = trainSeatingConfig.generalBerthSeatConfig?.[seatIdx];
-
-          seatNo = `coachNumber:${coachNumber},seatNo:${berthName}`;
-
-          trainSeatingConfig.generalBerth.push({ taken: true, ticketNo });
-        } else if (trainSeatingConfig.lowerBerth.length < trainSeatingConfig.lowerBerthMaxSeats) {
-
-          allocatedBerth = ticketTypesContants.lower as TicketType;
-          allocatedIndex = trainSeatingConfig.lowerBerth.length;
-
-          const coachNumber = Math.floor(allocatedIndex / 2);
-          const seatIdx = String(allocatedIndex % 2) as keyof typeof trainSeatingConfig.lowerBerthSeatConfig; // Ensure valid key
-          const berthName = trainSeatingConfig.lowerBerthSeatConfig?.[seatIdx];
-
-          seatNo = `coachNumber:${coachNumber},seatNo:${berthName}`;
-
-          trainSeatingConfig.lowerBerth.push({ taken: true, ticketNo });
+      // **1. Prioritize Lower Berth for Children (<5) & Seniors (>60)**
+      if ((age < 5 || age > 60)) {
+        const availableSeat = findAvailableSeat(
+          trainSeatingConfig.lowerBerth,
+          trainSeatingConfig.lowerBerthMaxSeats,
+          trainSeatingConfig.lowerBerthSeatConfig,
+          2
+        );
+        if (availableSeat) {
+          allocatedBerth = ticketTypesConstants.lower as TicketType;
+          seatNo = availableSeat.seatNo;
+          if (trainSeatingConfig.lowerBerth[availableSeat.seatIndex]) {
+            trainSeatingConfig.lowerBerth[availableSeat.seatIndex].taken = true;
+            trainSeatingConfig.lowerBerth[availableSeat.seatIndex].ticketNo = ticketNo;
+          } else {
+            trainSeatingConfig.lowerBerth.push({ taken: true, ticketNo });
+          }
         }
       }
 
-      // If Neither General nor Lower Berth is Available, Try RAC
-      if (!allocatedBerth && trainSeatingConfig.racBerth.length < trainSeatingConfig.racBerthMaxSeats) {
-        allocatedBerth = "rac";
-        allocatedIndex = trainSeatingConfig.racBerth.length;
-        seatNo = `RAC-${allocatedIndex}`;
-        trainSeatingConfig.racBerth.push({ taken: true, ticketNo });
+      // **2. General Berth Allocation**
+      if (!allocatedBerth) {
+        const availableSeat = findAvailableSeat(
+          trainSeatingConfig.generalBerth,
+          trainSeatingConfig.generalBerthMaxSeats,
+          trainSeatingConfig.generalBerthSeatConfig,
+          5
+        );
+        if (availableSeat) {
+          allocatedBerth = ticketTypesConstants.general as TicketType;
+          seatNo = availableSeat.seatNo;
+          if (trainSeatingConfig.generalBerth[availableSeat.seatIndex]) {
+            trainSeatingConfig.generalBerth[availableSeat.seatIndex].taken = true;
+            trainSeatingConfig.generalBerth[availableSeat.seatIndex].ticketNo = ticketNo;
+          } else {
+            trainSeatingConfig.generalBerth.push({ taken: true, ticketNo });
+          }
+        }
       }
-      // If RAC is Full, Try Waiting List
-      else if (!allocatedBerth && trainSeatingConfig.waitingLists.length < trainSeatingConfig.waitingListMaxSeats) {
-        allocatedBerth = "waiting";
-        allocatedIndex = trainSeatingConfig.waitingLists.length;
-        seatNo = `WL-${allocatedIndex}`;
-        trainSeatingConfig.waitingLists.push({ taken: true, ticketNo });
+
+      // **3. RAC Berth Allocation**
+      if (!allocatedBerth) {
+        const availableSeat = findAvailableSeat(
+          trainSeatingConfig.racBerth,
+          trainSeatingConfig.racBerthMaxSeats,
+          {},
+          1
+        );
+        if (availableSeat) {
+          allocatedBerth = "rac";
+          seatNo = `RAC-${availableSeat.seatIndex}`;
+          if (trainSeatingConfig.racBerth[availableSeat.seatIndex]) {
+            trainSeatingConfig.racBerth[availableSeat.seatIndex].taken = true;
+            trainSeatingConfig.racBerth[availableSeat.seatIndex].ticketNo = ticketNo;
+          } else {
+            trainSeatingConfig.racBerth.push({ taken: true, ticketNo });
+          }
+        }
       }
-      // If No Space Available, Reject Ticket
-      else if (!allocatedBerth) {
+
+      // **4. Waiting List Allocation**
+      if (!allocatedBerth) {
+        const availableSeat = findAvailableSeat(
+          trainSeatingConfig.waitingLists,
+          trainSeatingConfig.waitingListMaxSeats,
+          {},
+          1
+        );
+        if (availableSeat) {
+          allocatedBerth = "waiting";
+          seatNo = `WL-${availableSeat.seatIndex}`;
+          if (trainSeatingConfig.waitingLists[availableSeat.seatIndex]) {
+            trainSeatingConfig.waitingLists[availableSeat.seatIndex].taken = true;
+            trainSeatingConfig.waitingLists[availableSeat.seatIndex].ticketNo = ticketNo;
+          } else {
+            trainSeatingConfig.waitingLists.push({ taken: true, ticketNo });
+          }
+        }
+      }
+
+      // **5. If No Seats Available, Reject Booking**
+      if (!allocatedBerth) {
         failedPassengers.push({ name: passenger.name, reason: "No seats available in any category" });
         continue;
       }
 
-      // Store Ticket Details
+      // **Save the ticket**
       bookedTickets.push({
         ticketNo,
         trainUniqueId,
@@ -148,12 +178,10 @@ export class TicketService {
       });
     }
 
-    // If no passengers could be booked, throw an error
     if (bookedTickets.length === 0) {
       throw new Error("No tickets available. Booking failed for all passengers.");
     }
 
-    // Save bookings to database
     await this.prisma.$transaction([
       this.prisma.trainConfig.update({
         where: { id: trainConfigId },
@@ -164,11 +192,7 @@ export class TicketService {
       })
     ]);
 
-    // Return success and failure responses
-    return {
-      bookedTickets,
-      failedPassengers,
-    };
+    return { bookedTickets, failedPassengers };
   }
 
 
@@ -189,13 +213,13 @@ export class TicketService {
     let ticketUpdates: any[] = [];
 
     // Remove the canceled ticket from the berth list
-    if (ticket.ticketType === ticketTypesContants.lower) {
+    if (ticket.ticketType === ticketTypesConstants.lower) {
       updatedTrainConfig.lowerBerth = updatedTrainConfig.lowerBerth.filter(seat => seat.ticketNo !== ticketNo);
-    } else if (ticket.ticketType === ticketTypesContants.general) {
+    } else if (ticket.ticketType === ticketTypesConstants.general) {
       updatedTrainConfig.generalBerth = updatedTrainConfig.generalBerth.filter(seat => seat.ticketNo !== ticketNo);
-    } else if (ticket.ticketType === ticketTypesContants.rac) {
+    } else if (ticket.ticketType === ticketTypesConstants.rac) {
       updatedTrainConfig.racBerth = updatedTrainConfig.racBerth.filter(seat => seat.ticketNo !== ticketNo);
-    } else if (ticket.ticketType === ticketTypesContants.waiting) {
+    } else if (ticket.ticketType === ticketTypesConstants.waiting) {
       updatedTrainConfig.waitingLists = updatedTrainConfig.waitingLists.filter(seat => seat.ticketNo !== ticketNo);
     }
 
@@ -208,7 +232,7 @@ export class TicketService {
       ticketUpdates.push(
         this.prisma.tickets.update({
           where: { ticketNo: racTicketNo },
-          data: { ticketType: ticketTypesContants.general, seatNo: ticket.seatNo }
+          data: { ticketType: ticketTypesConstants.general, seatNo: ticket.seatNo }
         })
       );
 
@@ -224,12 +248,12 @@ export class TicketService {
       ticketUpdates.push(
         this.prisma.tickets.update({
           where: { ticketNo: wlTicketNo },
-          data: { ticketType: ticketTypesContants.rac, seatNo: `RAC:${updatedTrainConfig.racBerth.length - 1}` }
+          data: { ticketType: ticketTypesConstants.rac, seatNo: `RAC:${updatedTrainConfig.racBerth.length - 1}` }
         })
       );
 
       movedToRAC.push(wlTicketNo);
-   }
+    }
 
     // Delete the canceled ticket
     ticketUpdates.push(

@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const API_URL = "http://localhost:4000/api/v1/tickets/book";
-const TRAIN_ID = "";
+const TRAIN_ID = "17659449-f6e7-41dd-8822-c49503a8c6bb";
 
 function getRandomDOB() {
   const startYear = 1950;
