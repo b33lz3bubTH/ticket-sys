@@ -1,27 +1,27 @@
-# Use Node.js base image
-FROM node:18
+# Use Node 20.16 alpine as base image
+FROM node:20.16-alpine3.19 AS base
 
-# Set working directory
-WORKDIR /app
+# Change the working directory to /build
+WORKDIR /
 
-# Copy package files
-COPY package.json package-lock.json ./
+# Copy the package.json and package-lock.json files to the /build directory
+COPY package*.json ./
 
-# Install dependencies
-RUN npm install
-
-# Copy project files
 COPY . .
-
-# Build TypeScript
+# Install production dependencies and clean the cache
+RUN npm ci --omit=dev && npm cache clean --force
+RUN npm install
 RUN npm run build
 
 # Prisma: Generate & migrate the database
 RUN npx prisma generate
 RUN npx prisma migrate deploy
 
-# Expose the app port
+# Copy the entire source code into the container
+
+# Document the port that may need to be published
 EXPOSE 3000
 
 # Start the application
+
 CMD ["node", "dist/index.js"]
