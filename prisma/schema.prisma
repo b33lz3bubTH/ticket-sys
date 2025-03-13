@@ -7,6 +7,15 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// each table will have, but at this moment this isnt added.
+
+// createdAt DateTime
+// updatedAt DateTime
+// deletedAt DateTime
+// createdBy String
+// updatedBy String
+// deletedBy String
+
 // HOW-2-BRD 12/03/25:10am-12/03/25:3pm
 model TrainTiming {
   id    Int     @id @default(autoincrement())
