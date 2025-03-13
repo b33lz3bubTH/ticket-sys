@@ -17,7 +17,7 @@ async function bootstrap() {
   app.use('/api/v1', new TicketsController().getRouter());
 
 
-  app.listen(4000, async () => {
+  app.listen(process.env.PORT || 4000, async () => {
     console.log(`[+] Listening on port 3000`);
   });
 }

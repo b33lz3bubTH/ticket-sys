@@ -3,6 +3,123 @@
 
 # **Train Ticket Booking and Cancellation - API Testing Documentation**
 
+
+## Run in dev
+#### set env
+> DATABASE_URL="file:./dev.db"
+> PORT=4000
+
+# API Docs Begin
+## 🚀 Getting Started
+
+### Installation & Setup
+1. Install dependencies:
+   ```sh
+   npm install
+   ```
+2. Run Prisma migrations:
+   ```sh
+   npx prisma migrate dev
+   ```
+3. Start the development server:
+   ```sh
+   npm run dev
+   ```
+---
+
+## 📌 API Endpoints
+
+### 1️⃣ Create Train Timings  
+**Endpoint:** `POST /api/v1/trains/timings`  
+**Request:**
+```sh
+curl --request POST \
+  --url http://localhost:4000/api/v1/trains/timings \
+  --header 'Content-Type: application/json' \
+  --data '{
+	"trainNo": "HOW-BRD Satabdi",
+	"source": "Howrah",
+	"destination": "Bardhaman",
+	"sourceTime": "2025-03-13T05:45:00.000Z",
+	"destinationTime": "2025-03-13T08:00:00.000Z"
+}'
+```
+**Response:**
+```json
+{
+	"message": "Train timings added successfully",
+	"data": {
+		"id": 1,
+		"trainUniqueId": "41f96793-4390-418c-935b-a06f701fe1bd",
+		"trainNo": "HOW-BRD Satabdi",
+		"source": "Howrah",
+		"destination": "Bardhaman",
+		"sourceTime": "2025-03-13T05:45:00.000Z",
+		"destinationTime": "2025-03-13T08:00:00.000Z",
+		"totalSeats": 91
+	}
+}
+```
+
+---
+
+### 2️⃣ Get Train Timing Details  
+**Endpoint:** `GET /api/v1/trains/timings/{trainUniqueId}`  
+**Request:**
+```sh
+curl --request GET \
+  --url http://localhost:4000/api/v1/trains/timings/41f96793-4390-418c-935b-a06f701fe1bd
+```
+
+---
+
+### 3️⃣ Book a Ticket  
+**Endpoint:** `POST /api/v1/tickets/book`  
+**Request:**
+```sh
+curl --request POST \
+  --url http://localhost:4000/api/v1/tickets/book \
+  --header 'Content-Type: application/json' \
+  --data '{
+	"trainUniqueId": "41f96793-4390-418c-935b-a06f701fe1bd",
+	"phone": "6291048482",
+	"passengers": [
+		{ "name": "Rahul", "dob": "1998-04-30", "gender": "male" },
+		{ "name": "Singh", "dob": "1945-04-30", "gender": "male" }
+	]
+}'
+```
+
+---
+
+### 4️⃣ Fetch Ticket Details  
+**Endpoint:** `GET /api/v1/tickets/ticket/{ticketId}`  
+**Request:**
+```sh
+curl --request GET \
+  --url http://localhost:4000/api/v1/tickets/ticket/a1a0419b-72a9-4255-9e57-0f7954a27c34
+```
+
+---
+
+### 5️⃣ Delete a Booked Ticket  
+**Endpoint:** `DELETE /api/v1/tickets/ticket/{ticketId}`  
+**Request:**
+```sh
+curl --request DELETE \
+  --url http://localhost:4000/api/v1/tickets/ticket/ba0acce2-e3d0-4a20-ac26-48a8b68f2b75
+```
+
+---
+
+💡 *Ensure that your server is running before making API requests.* 🚄
+
+# Api Docs End
+
+
+#### ======================================
+# Testing The Cancellation
+#### ======================================
 ## **1. Adding a Train Journey**
 ### **Request**
 **Endpoint:**  
