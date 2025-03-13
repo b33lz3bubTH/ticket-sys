@@ -6,7 +6,9 @@
 
 ## Run in dev
 #### set env
+
 > DATABASE_URL="file:./dev.db"
+
 > PORT=4000
 
 # API Docs Begin
