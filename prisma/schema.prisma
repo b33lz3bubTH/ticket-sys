@@ -18,9 +18,16 @@ model TrainTiming {
   destinationTime DateTime
 }
 
+model TrainConfig {
+  id    Int     @id @default(autoincrement())
+  trainUniqueId String
+  config Json
+}
+
 model Tickets {
   id    Int     @id @default(autoincrement())
   ticketNo String @unique
+  trainUniqueId String
   name String
   phone String
   dob String

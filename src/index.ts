@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import { TrainsController } from "./resources/trains/controllers";
+import { TicketsController } from "./resources/tickets/controllers";
 
 async function bootstrap() {
   console.log(`[+] starting...`);
@@ -13,6 +14,7 @@ async function bootstrap() {
   // some default invites
 
   app.use('/api/v1', new TrainsController().getRouter());
+  app.use('/api/v1', new TicketsController().getRouter());
 
 
   app.listen(4000, async () => {

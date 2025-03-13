@@ -25,3 +25,19 @@ curl --request POST \
 }
 
 # 2 Book Ticket for a Train Journey (trainUniqueId) is the ref:
+
+```json
+{
+	"trainUniqueId": "8ced5389-0b1b-4241-88b9-9e14662fc6e5",
+"phone": "6291048482",
+	"passengers": [{
+		"name": "suphal",
+		"age": "2023-04-30",
+		"gender": "male",
+		"guardian": {
+			"name": "sourav",
+			"age": "1998-04-30",
+			"gender": "male"
+		}
+	}]
+}```
