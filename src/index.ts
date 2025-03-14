@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+import { errors } from 'celebrate';
 import { TrainsController } from "./resources/trains/controllers";
 import { TicketsController } from "./resources/tickets/controllers";
 
@@ -15,6 +16,7 @@ async function bootstrap() {
 
   app.use('/api/v1', new TrainsController().getRouter());
   app.use('/api/v1', new TicketsController().getRouter());
+  app.use(errors());
 
 
   app.listen(process.env.PORT || 4000, async () => {

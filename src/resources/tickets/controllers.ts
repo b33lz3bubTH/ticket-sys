@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import { validatePassengers, type IPassenger } from "./dtos";
 
 import { TicketService } from "./service";
+import { ticketValidation } from "./validators";
 
 
 export class TicketsController {
@@ -81,7 +82,7 @@ export class TicketsController {
 
 
   private initializeRoutes(): void {
-    this.router.post("/tickets/book", this.bookTickets);
+    this.router.post("/tickets/book", ticketValidation, this.bookTickets);
     this.router.get("/tickets/ticket/:ticketId", this.getTickets);
     this.router.delete("/tickets/ticket/:ticketId", this.cancelTicket);
   }

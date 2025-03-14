@@ -4,6 +4,7 @@ import { PrismaClient } from "@prisma/client";
 import { v4 as uuidv4 } from 'uuid';
 import { TicketService } from "../tickets/service";
 import { ISeatConfig } from "../../types";
+import { trainValidation } from "./validators";
 
 export class TrainsController {
   private router: Router;
@@ -73,7 +74,7 @@ export class TrainsController {
   private initializeRoutes(): void {
     
     this.router.get("/trains/timings/:trainUniqueId", this.getTrainTimings);
-    this.router.post("/trains/timings", this.addTrainTimings);
+    this.router.post("/trains/timings", trainValidation, this.addTrainTimings);
   }
 
   public getRouter(): Router {
